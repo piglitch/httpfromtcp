@@ -2,31 +2,34 @@ package main
 
 import (
 	// "fmt"
-	"errors"
-	"io"
+	// "errors"
+	// "io"
+	"net"
+
 	// "log"
 	// "os"
 	"strings"
 )
 
-func getLinesChannel(f io.ReadCloser) <-chan string{
+func getLinesChannel(conn net.Conn) <-chan string{
 	msg := make(chan string)
 	b := make([]byte, 8)
 	var currLine string 
 	
 	go func() {
 		defer close(msg)
-		defer f.Close()
+		defer conn.Close()
 		for {
-			byte_num, err := f.Read(b)
-			if errors.Is(err, io.EOF){
+			byte_num, err := conn.Read(b)
+			if err != nil {
+				msg <- currLine
 				return
 			}
 			currLine += string(b[:byte_num])
 			parts := strings.Split(currLine, "\n")
 
 			for i, part := range parts {
-				if i < len(parts)-1 && part != "" {
+				if i < len(parts)-1 {
 					msg <- part	
 				}
 			}
