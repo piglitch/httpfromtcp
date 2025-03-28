@@ -23,7 +23,9 @@ func main(){
 		}
 		fmt.Println("A connection has been accepted.")
 		msgChan := getLinesChannel(conn)
-		fmt.Println(string(<-msgChan))
+		for msg := range msgChan {
+			fmt.Println(msg)
+		}		
 		fmt.Println("Channel is closed")
 	}
 }

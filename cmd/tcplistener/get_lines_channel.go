@@ -18,7 +18,6 @@ func getLinesChannel(conn net.Conn) <-chan string{
 	
 	go func() {
 		defer close(msg)
-		defer conn.Close()
 		for {
 			byte_num, err := conn.Read(b)
 			if err != nil {
@@ -36,6 +35,5 @@ func getLinesChannel(conn net.Conn) <-chan string{
 			currLine = parts[len(parts)-1]
 		}	
 	}()
-
 	return msg
 }
