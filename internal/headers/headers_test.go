@@ -61,8 +61,8 @@ func TestHeadersParse(t *testing.T) {
 	assert.False(t, done)
 
 	// Invalid characters in field 
-	headers = map[string]string{"Host@": "localhost:42069"}
-	data = []byte("User-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n")
+	headers = map[string]string{"Host": "localhost:42069"}
+	data = []byte("User-Agent@: curl/7.81.0\r\nAccept: */*\r\n\r\n")
 	n, done, err = headers.Parse(data)
 	require.Error(t, err)
 	assert.Equal(t, 0, n)

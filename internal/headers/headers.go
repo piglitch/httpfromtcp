@@ -46,14 +46,13 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 			return 0, false,  errors.New("field does not contain enough characters")
 		}
 
-		pattern := `^[A-Za-z0-9!#$%&'*+\-.\^_` + "`|~]+$`"
+		pattern := `^[A-Za-z0-9!#$%&'*+\-.\^_` + `|~]+$`
 		re := regexp.MustCompile(pattern)
 
 		if !re.MatchString(key) {
 			return 0, false, errors.New("field contains illegal characters")
 		}
 		h[strings.ToLower(key)] = value 	
-
 	}
 
 	return crlf_idx + len(CRLF), false, nil
