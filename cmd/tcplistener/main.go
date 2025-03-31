@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"httpfromtcp/internal/request"
 )
 
 func main(){
@@ -21,10 +22,14 @@ func main(){
 			return
 		}
 		fmt.Println("A connection has been accepted.")
-		msgChan := getLinesChannel(conn)
-		for msg := range msgChan {
-			fmt.Println(msg)
-		}		
-		fmt.Println("Channel is closed")
+		r, err := request.RequestFromReader(conn)
+		if err != nil {
+			log.Fatal("error: ", err)
+			return
+		}
+		fmt.Println("Request line:")
+		fmt.Println("- Method:", r.RequestLine.Method)
+		fmt.Println("- Target:", r.RequestLine.RequestTarget)
+		fmt.Println("- Version:", r.RequestLine.HttpVersion)
 	}
 }
