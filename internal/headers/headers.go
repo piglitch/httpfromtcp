@@ -17,49 +17,41 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	if crlf_idx < 0 {
 		return 0, false, nil
 	}
-	if len(headerString) > 3 {
-		if headerString[:2] == CRLF {
-			return crlf_idx + len(CRLF), true, nil
-		}
+	if crlf_idx == 0 {
+		return 2, true, nil
 	}
 
 	header_str := headerString[:crlf_idx]
 
-	headerSlice := strings.Split(header_str, CRLF)
+	colon_idx := strings.Index(header_str, ":")
 
-	for _, line := range headerSlice {
-		
-		if line == "" {
-			continue
-		}
-		h_slice := strings.Fields(line)
-		if len(h_slice) != 2 {
-			return 0, false, errors.New("invalid spacing header" + line)
-		}
+	if string(header_str[(colon_idx-1)]) == " " {
+		return 0, false, errors.New("malformed header")
+	}
 
-		lines := strings.Fields(line)
+	header_str = strings.TrimSpace(header_str)
+	header_slice := strings.SplitN(header_str, ":", 2)
 
-		key := strings.TrimSpace(lines[0][:len(lines[0])-1])
-		value := strings.TrimSpace(lines[1])
+	key := strings.TrimSpace(header_slice[0])
+	value := strings.TrimSpace(header_slice[1])
 
-		if len(key) < 1 {
-			return 0, false,  errors.New("field does not contain enough characters")
-		}
+	if len(key) < 1 {
+		return 0, false,  errors.New("field does not contain enough characters")
+	}
 
-		pattern := `^[A-Za-z0-9!#$%&'*+\-.\^_` + `|~]+$`
-		re := regexp.MustCompile(pattern)
+	pattern := `^[A-Za-z0-9!#$%&'*+\-.\^_` + `|~]+$`
+	re := regexp.MustCompile(pattern)
 
-		if !re.MatchString(key) {
-			return 0, false, errors.New("field contains illegal characters")
-		}
+	if !re.MatchString(key) {
+		return 0, false, errors.New("field contains illegal characters")
+	}
 
-		if h[strings.ToLower(key)] != "" {
-			newValueString := h[strings.ToLower(key)] + ", " + value
-			h[strings.ToLower(key)] = newValueString
+	if h[strings.ToLower(key)] != "" {
+		newValueString := h[strings.ToLower(key)] + ", " + value
+		h[strings.ToLower(key)] = newValueString
 
-		} else {
-			h[strings.ToLower(key)] = value 	
-		}
+	} else {
+		h[strings.ToLower(key)] = value 	
 	}
 
 	return crlf_idx + len(CRLF), false, nil
