@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"httpfromtcp/internal/headers"
 )
 
 type parseState int
@@ -12,11 +13,13 @@ type parseState int
 const (
 	initialized parseState = iota
 	done 
+	requestStateParsingHeaders
 )
 
 type Request struct {
 	RequestLine RequestLine
 	parseState int
+	Headers map[string]string
 }
 
 type RequestLine struct {
@@ -25,11 +28,16 @@ type RequestLine struct {
 	Method string
 }
 
+var h headers.Headers = make(headers.Headers)
+
 var ErrNeedMoreData = errors.New("need more data")
+
+var CRLF string = "\r\n"
 
 func parseRequestLine(b []byte) (r RequestLine, n int, err error) {
 	requestString := string(b)
-	
+	crlf_idx := strings.Index(requestString, CRLF)
+	requestString = requestString[:crlf_idx+2]
 	reqSlice := strings.Split(requestString, "\r\n")
 	if len(reqSlice) < 2 {
 		return RequestLine{}, 0, nil
@@ -38,7 +46,7 @@ func parseRequestLine(b []byte) (r RequestLine, n int, err error) {
 	reqLineSlice := strings.Split(reqLineString, " ") 
 
 	if len(reqLineSlice) < 3 {
-		return RequestLine{}, 0, errors.New("poorly formatted request")
+		return RequestLine{}, 0, errors.New("poorly formatted request" + reqLineString)
 	}
 
 	method := reqLineSlice[0]
@@ -62,6 +70,7 @@ func parseRequestLine(b []byte) (r RequestLine, n int, err error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
+	totalBytesParsed := 0
 	if r.parseState == int(initialized) {
 		rL, n, err := parseRequestLine(data)	
 		if err != nil {
@@ -71,11 +80,24 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, ErrNeedMoreData
 		}
 		r.RequestLine = rL
-		r.parseState = int(done)
+		totalBytesParsed += n
+		r.parseState = int(requestStateParsingHeaders)
 		return n, nil
 	}
 	if r.parseState == int(done) {
 		return 0, errors.New("error: trying to read data in a done state")
+	}
+	for r.parseState == int(requestStateParsingHeaders) {
+		n, state, err := h.Parse(data[totalBytesParsed:])
+		if err == nil {
+			return 0, err
+		}
+		totalBytesParsed += n
+		if state || totalBytesParsed >= len(data[totalBytesParsed:]) {
+			r.parseState = int(done)
+			return n, nil
+		}
+		continue
 	}
 	return 0, errors.New("error: unknown state")
 }
@@ -93,7 +115,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	for r.parseState != int(done) {
 
 		if readToIndex == len(b) {
-			// bufferSize = bufferSize * 2
 			new_b := make([]byte, len(b) * 2)
 			copy(new_b, b)
 			b = new_b
@@ -103,7 +124,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		if err == io.EOF {
 			r.parseState = int(done)
-			fmt.Println(readToIndex, ": line 94")
 			break
 		}
 		readToIndex += rn

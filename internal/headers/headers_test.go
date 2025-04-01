@@ -42,6 +42,15 @@ func TestHeadersParse(t *testing.T) {
 	assert.Equal(t, 25, n)
 	assert.False(t, done)
 
+	data = []byte("User-Agent: curl-01/9.81.0\r\nAccept: */*\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "localhost:42069", headers["host"])
+	assert.Equal(t, "curl/7.81.0, curl-01/9.81.0", headers["user-agent"])
+	assert.Equal(t, 28, n)
+	assert.False(t, done)
+
 	// Test: Valid done
 	headers = NewHeaders()
 	data = []byte("\r\n a bunch of other stuff")

@@ -52,7 +52,14 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		if !re.MatchString(key) {
 			return 0, false, errors.New("field contains illegal characters")
 		}
-		h[strings.ToLower(key)] = value 	
+
+		if h[strings.ToLower(key)] != "" {
+			newValueString := h[strings.ToLower(key)] + ", " + value
+			h[strings.ToLower(key)] = newValueString
+
+		} else {
+			h[strings.ToLower(key)] = value 	
+		}
 	}
 
 	return crlf_idx + len(CRLF), false, nil
