@@ -56,3 +56,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	return crlf_idx + len(CRLF), false, nil
 }
+
+func (h Headers) Get(key string) (val string) {
+	return h[strings.ToLower(key)]
+}

@@ -3,9 +3,10 @@ package request
 import (
 	"errors"
 	"fmt"
-	"io"
-	"strings"
 	"httpfromtcp/internal/headers"
+	"io"
+	"strconv"
+	"strings"
 )
 
 type requestState int
@@ -13,6 +14,7 @@ type requestState int
 const (
 	requestStateInitialized requestState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
@@ -20,6 +22,7 @@ type Request struct {
 	RequestLine RequestLine
 	state requestState
 	Headers headers.Headers
+	Body []byte
 }
 
 type RequestLine struct {
@@ -102,17 +105,42 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, err
 		}
 		if state {
-			r.state = requestStateDone
+			r.state = requestStateParsingBody
 		}
 		return n, nil
+	}
+
+	if r.state == requestStateParsingBody {
+		contentLength := r.Headers.Get("Content-Length")
+		if contentLength == "" {
+			r.state = requestStateDone
+			return len(data), nil
+		}
+		r.Body = append(r.Body, data...)
+		contentLengthInt, err := strconv.Atoi(contentLength)
+    if err != nil {
+        return 0, fmt.Errorf("invalid Content-Length header: %v", err)
+    }
+		
+		if len(r.Body) > contentLengthInt {
+			return 0, errors.New("body is larger than than reported content length")
+		}
+
+		if contentLengthInt == len(r.Body) {
+			r.state = requestStateDone
+			return len(data), nil
+		}
+
+		return len(data), nil
 	}
 
 	if r.state == requestStateDone {
 		return 0, errors.New("error: trying to read data in a done state")
 	}
 
-	return 0, errors.New("error: unknown state")
+	return 0, errors.New("error: unknown state" + string(data))
 }
+
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 
