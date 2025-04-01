@@ -95,6 +95,7 @@ func (r *Request) parse(data []byte) (int, error) {
 		totalBytesParsed += n
 		if state || totalBytesParsed >= len(data[totalBytesParsed:]) {
 			r.parseState = int(done)
+			
 			return n, nil
 		}
 		continue
