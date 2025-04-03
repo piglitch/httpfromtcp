@@ -70,7 +70,7 @@ func parseRequestLine(b []byte) (r RequestLine, n int, err error) {
 	return requestLine, len(reqLineString) + 2, nil
 }
 
-func (r *Request) parse(data []byte) (int, error) {
+func (r *Request) Parse(data []byte) (int, error) {
 	totalBytesParsed := 0
 	for r.state != requestStateDone {
 		n, err := r.parseSingle(data[totalBytesParsed:])
@@ -175,7 +175,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			return nil, err
 		}
 		readToIndex += rn
-		pn, err := r.parse(b[:readToIndex])
+		pn, err := r.Parse(b[:readToIndex])
 		if errors.Is(err, ErrNeedMoreData) {
 			continue
 		}

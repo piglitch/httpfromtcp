@@ -1,20 +1,32 @@
 package server
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	// "io"
+	"httpfromtcp/internal/request"
+	"httpfromtcp/internal/response"
+	"io"
 	"log"
 	"net"
 	"strconv"
 )
 
+type HandlerError struct {
+	StatusCode int
+	Message    string
+}
+
+type Handler func(w io.Writer, req *request.Request) *HandlerError
+
 type State int
 
-type Server struct{
+type Server struct {
 	currentState State
-	port int
-	listener net.Listener
+	port         int
+	listener     net.Listener
+	conn         io.Writer
+	handler			 Handler
 }
 
 const (
@@ -22,17 +34,19 @@ const (
 	ServerClosedState
 )
 
-func Serve(port int) (*Server, error) {
+func Serve(port int, handler Handler) (*Server, error) {
 	l, err := net.Listen("tcp", ":" + strconv.Itoa(port))
 	if err != nil {
 		return nil, err
 	}
 	s := Server{
 		currentState: ServerListeningState,
-		port: port,
-		listener: l,
+		port:         port,
+		listener:     l,
+		handler: handler,
 	}
-	go s.listen()  
+
+	go s.listen()
 	return &s, nil
 }
 
@@ -46,29 +60,50 @@ func (s *Server) Close() error {
 
 func (s *Server) listen() {
 	for s.currentState != ServerClosedState {
-			conn, err := s.listener.Accept()
-			if err != nil {
-					// Only log if we're not closed - errors are expected when closing
-					if s.currentState != ServerClosedState {
-							log.Println(err)
-					}
-					continue
+		conn, err := s.listener.Accept()
+		s.conn = conn
+		if err != nil {
+			if s.currentState != ServerClosedState {
+				log.Println(err)
 			}
-			go s.handle(conn)
+			continue
+		}
+		go s.handle(conn)
+	}
+}
+
+func WriteHandlerError(w io.Writer, err *HandlerError) {
+	if err != nil {
+		fmt.Fprintf(w, "Error (%d): %s\n", err.StatusCode, err.Message)
 	}
 }
 
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
-	resp := "HTTP/1.1 200 OK\r\n" +
-                "Content-Type: text/plain\r\n" +
-                "\r\n" +
-                "Hello World!"
 
-	_, err := conn.Write([]byte(resp))
+	r, err := request.RequestFromReader(conn)
 	if err != nil {
-		fmt.Println(err)
-		s.currentState = ServerClosedState
 		return
 	}
+
+	b := new(bytes.Buffer)
+
+	hErr := s.handler(b, r)
+	if hErr != nil {
+		response.WriteStatusLine(conn, response.StatusCode(hErr.StatusCode))
+		conn.Write([]byte("\r\n" + hErr.Message))
+		return
+	}
+
+	response.WriteStatusLine(conn, response.StatusCode(200))
+	headers := response.GetDefaultHeaders(len(b.Bytes()))
+	response.WriteHeaders(conn, headers)
+
+	conn.Write(b.Bytes())
+
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	s.currentState = ServerClosedState
+	// 	return
+	// }
 }
