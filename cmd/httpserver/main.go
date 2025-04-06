@@ -2,6 +2,7 @@ package main
 
 import (
 	"httpfromtcp/internal/request"
+	"httpfromtcp/internal/response"
 	"httpfromtcp/internal/server"
 	"io"
 	"log"
@@ -12,21 +13,14 @@ import (
 
 const port = 42069
 
-func HandlerFunc(w io.Writer, req *request.Request) *server.HandlerError {
+func HandlerFunc(w response.Writer, req *request.Request) {
+	w.Write = new(io.Writer)
 	if req.RequestLine.RequestTarget == "/yourproblem"{
-		return &server.HandlerError{
-			StatusCode: 400,
-			Message: "Your problem is not my problem\n",
-		}
+		
 	}
 	if req.RequestLine.RequestTarget == "/myproblem"{
-		return &server.HandlerError{
-			StatusCode: 500,
-			Message: "Woopsie, my bad\n",
-		}
+		
 	}
-	w.Write([]byte("All good, frfr\n"))
-	return nil
 }
 
 func main() {
