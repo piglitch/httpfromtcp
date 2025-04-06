@@ -1,7 +1,7 @@
 package server
 
 import (
-	"bytes"
+	// "bytes"
 	"errors"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
@@ -70,17 +70,15 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-	// r, err := request.RequestFromReader(conn)
-	// if err != nil {
-	// 	return
-	// }
+	r, err := request.RequestFromReader(conn)
+	if err != nil {
+		return
+	}
 
-	b := new(bytes.Buffer)
+	w := &response.Writer{
+		Writer: conn,
+	}
 
-	// response.WriteStatusLine(response.StatusCode(200))
-	// headers := response.GetDefaultHeaders(len(b.Bytes()))
-	// response.WriteHeaders(headers)
-	// response.WriteB
+	s.handler(*w, r)
 
-	conn.Write(b.Bytes())
 }

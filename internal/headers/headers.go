@@ -60,3 +60,8 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 func (h Headers) Get(key string) (val string) {
 	return h[strings.ToLower(key)]
 }
+
+func (h Headers) Set(key, val string) string {
+	h[strings.ToLower(key)] = val
+	return 	h[strings.ToLower(key)]
+}

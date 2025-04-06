@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
 	"httpfromtcp/internal/server"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -14,13 +14,48 @@ import (
 const port = 42069
 
 func HandlerFunc(w response.Writer, req *request.Request) {
-	w.Write = new(io.Writer)
+	body := fmt.Sprintf(`<html>
+													<head>
+														<title>%d OK</title>
+													</head>
+													<body>
+														<h1>Success!</h1>
+														<p>Your request was an absolute banger.</p>
+													</body>
+												</html>`, 200)
+
 	if req.RequestLine.RequestTarget == "/yourproblem"{
-		
+		w.WriteStatusLine(response.StatusBadRequest)
+		body = fmt.Sprintf(`<html>
+										<head>
+											<title>%d Bad Request</title>
+										</head>
+										<body>
+											<h1>Bad Request</h1>
+											<p>Your request honestly kinda sucked.</p>
+										</body>
+									</html>`, response.StatusBadRequest)
 	}
+
 	if req.RequestLine.RequestTarget == "/myproblem"{
-		
+		w.WriteStatusLine(response.StatusInternalError)
+		body = fmt.Sprintf(`<html>
+													<head>
+														<title>%d Internal Server Error</title>
+													</head>
+													<body>
+														<h1>Internal Server Error</h1>
+														<p>Okay, you know what? This one is on me.</p>
+													</body>
+												</html>`, response.StatusInternalError)
 	}
+
+	w.WriteStatusLine(response.StatusOk)
+
+	req.Headers.Set("Content-Type", "text/html")
+	w.WriteHeaders(req.Headers)
+	
+	w.WriteBody([]byte(body))
 }
 
 func main() {

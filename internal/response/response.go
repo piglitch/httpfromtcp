@@ -1,14 +1,11 @@
 package response
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
+	// "fmt"
 	"httpfromtcp/internal/headers"
 	"io"
-	"strconv"
-
-	"go.uber.org/zap/buffer"
 )
 
 
@@ -30,7 +27,8 @@ const (
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
 	h := make(headers.Headers)
-	h["Content-Length"] = strconv.Itoa(contentLen)
+	// h["Content-Length"] = strconv.Itoa(contentLen)
+	h["Transfer-Encoding"] = "chunked"
 	h["Connection"] = "close"
 	h["Content-Type"] = "text/plain"
 
@@ -38,57 +36,59 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 }
 
 type Writer struct{
-	Write 				*io.Writer
+	Writer 				io.Writer
 	writerState writerState
 }
 
 func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
-
+	statusLine := ""
 	if w.writerState != stateStatus {
-		return errors.New("Have to write status first")	
+		return errors.New("have to write status first")	
 	}
 
-	reasonHtml := ""
 	if statusCode == 200 {
 		statusCode = StatusOk
-		reasonHtml = fmt.Sprintf(`<html>
-																<head>
-																	<title>%d OK</title>
-																</head>
-																<body>
-																	<h1>Success!</h1>
-																	<p>Your request was an absolute banger.</p>
-																</body>
-															</html>`, statusCode)
+		statusLine = fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, "OK")
+		// reasonHtml = fmt.Sprintf(`<html>
+		// 														<head>
+		// 															<title>%d OK</title>
+		// 														</head>
+		// 														<body>
+		// 															<h1>Success!</h1>
+		// 															<p>Your request was an absolute banger.</p>
+		// 														</body>
+		// 													</html>`, statusCode)
 	}
 
 	if statusCode == 400 {
 		statusCode = StatusBadRequest
-		reasonHtml = fmt.Sprintf(`<html>
-										<head>
-											<title>%d Bad Request</title>
-										</head>
-										<body>
-											<h1>Bad Request</h1>
-											<p>Your request honestly kinda sucked.</p>
-										</body>
-									</html>`, statusCode)
+		statusLine = fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, "Bad Request")
+		// reasonHtml = fmt.Sprintf(`<html>
+		// 								<head>
+		// 									<title>%d Bad Request</title>
+		// 								</head>
+		// 								<body>
+		// 									<h1>Bad Request</h1>
+		// 									<p>Your request honestly kinda sucked.</p>
+		// 								</body>
+		// 							</html>`, statusCode)
 	}
 
 	if statusCode == 500 {
 		statusCode = StatusInternalError
-		reasonHtml = fmt.Sprintf(`<html>
-																<head>
-																	<title>%d Internal Server Error</title>
-																</head>
-																<body>
-																	<h1>Internal Server Error</h1>
-																	<p>Okay, you know what? This one is on me.</p>
-																</body>
-															</html>`, statusCode)
+		statusLine = fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, "Internal Server Error")
+		// reasonHtml = fmt.Sprintf(`<html>
+		// 														<head>
+		// 															<title>%d Internal Server Error</title>
+		// 														</head>
+		// 														<body>
+		// 															<h1>Internal Server Error</h1>
+		// 															<p>Okay, you know what? This one is on me.</p>
+		// 														</body>
+		// 													</html>`, statusCode)
 	}
-	fmt.Fprint(*w.Write, []byte(reasonHtml))
 	w.writerState = stateHeader
+	w.Writer.Write([]byte(statusLine))
 	return nil
 }
 
@@ -98,11 +98,25 @@ func (w *Writer) WriteHeaders(headers headers.Headers) error {
 		str += key + ": " + headers[key] + "\r\n"
 	}
 	str += "\r\n"
-	fmt.Fprint(*w.Write, []byte(str))
+
+	w.Writer.Write([]byte(str))
 
 	return nil
 }
 
 func (w *Writer) WriteBody(p []byte) (int, error) {
-	
+	n, err := w.Writer.Write(p)
+	if err != nil {
+		return n, err
+	}
+	return n, nil
 }
+
+func (w *Writer) WriterChunkedBody(p []byte) (int, error) {
+
+}
+
+func (w *Writer) WriterChunkedBodyDone() (int, error) {
+
+}
+
