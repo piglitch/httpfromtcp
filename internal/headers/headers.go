@@ -65,3 +65,10 @@ func (h Headers) Set(key, val string) string {
 	h[strings.ToLower(key)] = val
 	return 	h[strings.ToLower(key)]
 }
+
+func (h Headers) RemoveHeaders(key string) {
+	_, ok := h[key]
+	if ok {
+			delete(h, key)
+	}
+}

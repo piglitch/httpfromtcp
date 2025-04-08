@@ -1,17 +1,63 @@
 package main
 
 import (
+	// "crypto/sha256"
+	"crypto/sha256"
 	"fmt"
+
+	// "httpfromtcp/internal/headers"
+	// "httpfromtcp/internal/headers"
+	"httpfromtcp/internal/headers"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
 	"httpfromtcp/internal/server"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
 const port = 42069
+
+func ProxyHandler(writer response.Writer, trimmedPath string, req request.Request) {
+	buff := make([]byte, 1024)
+		
+	resp, err := http.Get("https://httpbin.org/" + trimmedPath)
+	if err != nil {
+		return 
+	}
+	writer.WriteStatusLine(response.StatusOk)
+	req.Headers.RemoveHeaders("Content-Length")
+	req.Headers.Set("Transfer-Encoding", "chunked")
+	req.Headers.Set("Content-Type", "text/html")
+	
+	trailers := []string{"X-Content-SHA256", "X-Content-Length"}
+	trailersStr := trailers[0] + ", " + trailers[1]
+	req.Headers.Set("Trailer", trailersStr)
+
+	writer.WriteHeaders(req.Headers)
+	for {
+		n, err := resp.Body.Read(buff)
+		if n > 0 {
+			writer.WriterChunkedBody(buff[:n])
+		}
+		if err != nil {
+			break
+		}
+		println(n)
+	}
+	// writer.WriteTrailers(trailerHeaders)
+	writer.WriterChunkedBodyDone()
+
+	trailerHeaders := headers.Headers{}
+	hash := sha256.Sum256(writer.FullBody)
+	trailerHeaders.Set("X-Content-SHA256", fmt.Sprintf("%x", hash))
+	trailerHeaders.Set("X-Content-Length", fmt.Sprintf("%d", len(writer.FullBody)))
+	// fmt.Printf("line 56: %d", fmt.Sprintf(hash))
+	writer.WriteTrailers(trailerHeaders)
+}
 
 func HandlerFunc(w response.Writer, req *request.Request) {
 	body := fmt.Sprintf(`<html>
@@ -49,10 +95,18 @@ func HandlerFunc(w response.Writer, req *request.Request) {
 													</body>
 												</html>`, response.StatusInternalError)
 	}
+	
+	isHttpBinRoute := strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/")
+	
+	if isHttpBinRoute {
+		httpBinRoute := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin")
+		ProxyHandler(w, httpBinRoute, *req)
+		return
+	}
 
 	w.WriteStatusLine(response.StatusOk)
 
-	req.Headers.Set("Content-Type", "text/html")
+	// req.Headers.RemoveHeaders("Content-Length")
 	w.WriteHeaders(req.Headers)
 	
 	w.WriteBody([]byte(body))

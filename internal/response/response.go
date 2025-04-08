@@ -3,6 +3,11 @@ package response
 import (
 	"errors"
 	"fmt"
+
+	// "net/http"
+	"strconv"
+	// "strings"
+
 	// "fmt"
 	"httpfromtcp/internal/headers"
 	"io"
@@ -23,12 +28,13 @@ const (
 	stateStatus writerState = iota
 	stateHeader  
 	stateBody 
+	stateTrailer
 )
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
 	h := make(headers.Headers)
-	// h["Content-Length"] = strconv.Itoa(contentLen)
-	h["Transfer-Encoding"] = "chunked"
+	h["Content-Length"] = strconv.Itoa(contentLen)
+	// h["Transfer-Encoding"] = "chunked"
 	h["Connection"] = "close"
 	h["Content-Type"] = "text/plain"
 
@@ -37,7 +43,8 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 
 type Writer struct{
 	Writer 				io.Writer
-	writerState writerState
+	writerState 	writerState
+	FullBody 			[]byte
 }
 
 func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
@@ -49,50 +56,27 @@ func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	if statusCode == 200 {
 		statusCode = StatusOk
 		statusLine = fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, "OK")
-		// reasonHtml = fmt.Sprintf(`<html>
-		// 														<head>
-		// 															<title>%d OK</title>
-		// 														</head>
-		// 														<body>
-		// 															<h1>Success!</h1>
-		// 															<p>Your request was an absolute banger.</p>
-		// 														</body>
-		// 													</html>`, statusCode)
 	}
 
 	if statusCode == 400 {
 		statusCode = StatusBadRequest
 		statusLine = fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, "Bad Request")
-		// reasonHtml = fmt.Sprintf(`<html>
-		// 								<head>
-		// 									<title>%d Bad Request</title>
-		// 								</head>
-		// 								<body>
-		// 									<h1>Bad Request</h1>
-		// 									<p>Your request honestly kinda sucked.</p>
-		// 								</body>
-		// 							</html>`, statusCode)
 	}
 
 	if statusCode == 500 {
 		statusCode = StatusInternalError
 		statusLine = fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, "Internal Server Error")
-		// reasonHtml = fmt.Sprintf(`<html>
-		// 														<head>
-		// 															<title>%d Internal Server Error</title>
-		// 														</head>
-		// 														<body>
-		// 															<h1>Internal Server Error</h1>
-		// 															<p>Okay, you know what? This one is on me.</p>
-		// 														</body>
-		// 													</html>`, statusCode)
 	}
 	w.writerState = stateHeader
 	w.Writer.Write([]byte(statusLine))
+
 	return nil
 }
 
 func (w *Writer) WriteHeaders(headers headers.Headers) error {
+	// if w.writerState == stateHeader {
+	// 	return errors.New("can't write headers now")
+	// }
 	var str string
 	for key := range headers {
 		str += key + ": " + headers[key] + "\r\n"
@@ -101,22 +85,61 @@ func (w *Writer) WriteHeaders(headers headers.Headers) error {
 
 	w.Writer.Write([]byte(str))
 
+	w.writerState = stateBody
 	return nil
 }
 
 func (w *Writer) WriteBody(p []byte) (int, error) {
+	// if w.writerState == stateBody {
+	// 	return 0, errors.New("can't write body now")
+	// }
 	n, err := w.Writer.Write(p)
 	if err != nil {
 		return n, err
 	}
+	w.writerState = stateTrailer
 	return n, nil
 }
 
 func (w *Writer) WriterChunkedBody(p []byte) (int, error) {
 
+	length := len(p)
+	hexLength := fmt.Sprintf("%x", length)
+
+	_, err := w.Writer.Write([]byte(hexLength + "\r\n"))
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := w.Writer.Write(p)
+	if err != nil {
+		return n, err
+	}
+
+	_, err = w.Writer.Write([]byte("\r\n"))
+	if err != nil {
+		return 0, err
+	}
+	w.FullBody = append(w.FullBody, p...)
+	return n, nil
 }
 
 func (w *Writer) WriterChunkedBodyDone() (int, error) {
-
+	w.writerState = stateTrailer
+	return w.Writer.Write([]byte("0\r\n"))
 }
 
+func (w *Writer) WriteTrailers(trailers headers.Headers) error {
+	var str string
+	
+	for key, value := range trailers {
+			str += key + ": " + value + "\r\n"
+	}
+	str += "\r\n"
+	
+	fmt.Println(str, "line 140")
+	
+	// Write directly to the underlying writer, not to w.Writer
+	_, err := w.Writer.Write([]byte(str))
+	return err
+}
