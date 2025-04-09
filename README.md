@@ -22,3 +22,21 @@ go run ./cmd/httpserver/main.go
 ```
 ## Usage
 You can use any HTTP client to make requests. Here's an example using Node.js:
+Using Node.js http module:
+```bash
+const http = require('http');
+
+http.get('http://localhost:8080/hello', (res) => {
+  let data = '';
+
+  res.on('data', chunk => {
+    data += chunk;
+  });
+
+  res.on('end', () => {
+    console.log('Response:', data);
+  });
+}).on('error', err => {
+  console.error('Error:', err.message);
+});
+```
