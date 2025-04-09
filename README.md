@@ -17,7 +17,7 @@ A lightweight HTTP/1.1 server built from scratch using Go.
 git clone https://github.com/yourusername/http-server.git
 cd http-server
 
-# Build the server
+# Run the server
 go run ./cmd/httpserver/main.go
 ```
 ## Usage
@@ -40,3 +40,33 @@ http.get('http://localhost:8080/hello', (res) => {
   console.error('Error:', err.message);
 });
 ```
+
+## Then test it using one of the Node.js examples above.
+
+## Expected output:
+```bash
+Hello, World!
+```
+
+## Implementation Details
+This server is written in Go using low-level TCP socket programming and manual HTTP/1.1 protocol handling. Key components include:
+
+- TCP connection management
+
+- HTTP request parsing
+
+- Response formatting
+
+- Basic routing system
+
+## Limitations
+- Currently only supports GET requests
+
+- No support for HTTPS
+
+- Limited to basic content types (e.g., text/plain, text/html)
+
+## Contributing
+Pull requests are welcome! For major changes, please open an issue first to discuss what you'd like to change or improve.
+
+
