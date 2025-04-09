@@ -26,7 +26,7 @@ Using Node.js http module:
 ```bash
 const http = require('http');
 
-http.get('http://localhost:8080/hello', (res) => {
+http.get('http://localhost:42069/hello', (res) => {
   let data = '';
 
   res.on('data', chunk => {
