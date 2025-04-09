@@ -45,7 +45,15 @@ http.get('http://localhost:42069/hello', (res) => {
 
 ## Expected output:
 ```bash
-Hello, World!
+Response: <html>
+            <head>
+              <title>200 OK</title>
+            </head>
+            <body>
+              <h1>Success!</h1>
+              <p>Your request was an absolute banger.</p>
+            </body>
+          </html>
 ```
 
 ## Implementation Details
