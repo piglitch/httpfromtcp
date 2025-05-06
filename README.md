@@ -5,7 +5,6 @@ A lightweight HTTP/1.1 server built from scratch using Go.
 ## Features
 
 - HTTP/1.1 compliant server implementation  
-- Supports GET requests  
 - Proper header parsing and generation  
 - TCP socket connection management  
 - Error handling with appropriate status codes
@@ -68,8 +67,6 @@ This server is written in Go using low-level TCP socket programming and manual H
 - Basic routing system
 
 ## Limitations
-- Currently only supports GET requests
-
 - No support for HTTPS
 
 - Limited to basic content types (e.g., text/plain, text/html)
