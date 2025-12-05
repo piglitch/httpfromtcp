@@ -13,7 +13,7 @@ A lightweight HTTP/1.1 server built from scratch using Go.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/http-server.git
+git clone https://github.com/yourusername/httpfromtcp.git
 cd http-server
 
 # Run the server
